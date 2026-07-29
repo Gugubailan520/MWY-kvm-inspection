@@ -39,6 +39,7 @@ type MongoCfg struct {
 	URI        string `yaml:"uri"`
 	Database   string `yaml:"database"`
 	Collection string `yaml:"collection"`
+	IfStatColl string `yaml:"ifstat_collection"` // 接口流量快照集合，默认 interface_stats
 }
 
 type JWTCfg struct {
@@ -73,6 +74,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Mongo.Collection == "" {
 		c.Mongo.Collection = "network_events"
+	}
+	if c.Mongo.IfStatColl == "" {
+		c.Mongo.IfStatColl = "interface_stats"
 	}
 	if c.JWT.ExpireHour <= 0 {
 		c.JWT.ExpireHour = 24

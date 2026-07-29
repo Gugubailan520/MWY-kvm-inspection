@@ -15,6 +15,7 @@ import (
 // Store MongoDB 日志存储
 type Store struct {
 	col *mongo.Collection
+	db  *mongo.Database
 }
 
 // New 连接 MongoDB 并返回 Store
@@ -26,7 +27,8 @@ func New(ctx context.Context, uri, db, coll string) (*Store, error) {
 	if err := cli.Ping(ctx, nil); err != nil {
 		return nil, err
 	}
-	c := cli.Database(db).Collection(coll)
+	database := cli.Database(db)
+	c := database.Collection(coll)
 	// 创建常用索引
 	_, _ = c.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{Keys: bson.D{{Key: "node_id", Value: 1}}},
@@ -34,8 +36,11 @@ func New(ctx context.Context, uri, db, coll string) (*Store, error) {
 		{Keys: bson.D{{Key: "is_violation", Value: 1}}},
 		{Keys: bson.D{{Key: "vm_id", Value: 1}}},
 	})
-	return &Store{col: c}, nil
+	return &Store{col: c, db: database}, nil
 }
+
+// Database 暴露底层 database，供其它 collection 复用同一连接池
+func (s *Store) Database() *mongo.Database { return s.db }
 
 // Insert 写入一条事件
 func (s *Store) Insert(ctx context.Context, ev *common.NetworkEvent) error {

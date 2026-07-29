@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/kvm-inspection/Server/internal/auth"
+	"github.com/kvm-inspection/Server/internal/ifstatstore"
 	"github.com/kvm-inspection/Server/internal/logstore"
 	"github.com/kvm-inspection/Server/internal/model"
 	"github.com/kvm-inspection/Server/internal/service"
@@ -24,6 +25,7 @@ import (
 type Handlers struct {
 	svc      *service.Service
 	logs     *logstore.Store
+	ifs      *ifstatstore.Store
 	engine   *violation.Engine
 	hub      *ws.Hub
 	auth     *auth.Manager
@@ -31,9 +33,9 @@ type Handlers struct {
 }
 
 // New 构造
-func New(svc *service.Service, logs *logstore.Store, engine *violation.Engine, hub *ws.Hub, am *auth.Manager) *Handlers {
+func New(svc *service.Service, logs *logstore.Store, ifs *ifstatstore.Store, engine *violation.Engine, hub *ws.Hub, am *auth.Manager) *Handlers {
 	return &Handlers{
-		svc: svc, logs: logs, engine: engine, hub: hub, auth: am,
+		svc: svc, logs: logs, ifs: ifs, engine: engine, hub: hub, auth: am,
 		upgrader: websocket.Upgrader{
 			CheckOrigin:     func(r *http.Request) bool { return true },
 			ReadBufferSize:  4096,
@@ -75,6 +77,9 @@ func (h *Handlers) Register(r *gin.Engine, corsOrigins []string) {
 			authd.GET("/blacklist", h.listBlacklist)
 			authd.POST("/blacklist", h.addBlacklist)
 			authd.DELETE("/blacklist/:id", h.deleteBlacklist)
+
+			authd.GET("/ifstats", h.ifStatsLatest)
+			authd.GET("/ifstats/history", h.ifStatsHistory)
 
 			authd.GET("/dashboard", h.dashboard)
 		}
@@ -329,6 +334,50 @@ func (h *Handlers) deleteBlacklist(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// ---------- interface traffic (ifstats) ----------
+
+// ifStatsLatest 返回指定节点每个接口的最新一条快照（接口列表卡片用）
+func (h *Handlers) ifStatsLatest(c *gin.Context) {
+	nodeID := c.Query("node_id")
+	if nodeID == "" {
+		// 默认取任意在线节点
+		if ids := h.hub.AgentIDs(); len(ids) > 0 {
+			nodeID = ids[0]
+		}
+	}
+	stats, err := h.ifs.Latest(c.Request.Context(), nodeID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": stats, "node_id": nodeID})
+}
+
+// ifStatsHistory 返回某节点某接口的历史流量序列（绘趋势图用，时间正序）
+func (h *Handlers) ifStatsHistory(c *gin.Context) {
+	q := ifstatstore.IfStatQuery{
+		NodeID: c.Query("node_id"),
+		Name:   c.Query("name"),
+		Limit:  atoiDefault(c.Query("limit"), 1000),
+	}
+	if v := c.Query("from"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			q.From = t
+		}
+	}
+	if v := c.Query("to"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			q.To = t
+		}
+	}
+	stats, err := h.ifs.Query(c.Request.Context(), q)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": stats})
+}
+
 // ---------- dashboard ----------
 
 func (h *Handlers) dashboard(c *gin.Context) {
@@ -431,6 +480,19 @@ func (h *Handlers) handleAgentMessage(nodeID string, data []byte) {
 		if ev.IsViolation {
 			h.hub.BroadcastEvent(ev)
 		}
+	case common.MsgTypeIfStats:
+		// 接口流量快照：落库 + 实时推送前端
+		var payload common.IfStatsPayload
+		if err := remap(msg.Payload, &payload); err != nil {
+			return
+		}
+		for i := range payload.Stats {
+			payload.Stats[i].NodeID = nodeID
+		}
+		if h.ifs != nil {
+			_ = h.ifs.InsertMany(context.Background(), payload.Stats)
+		}
+		h.hub.BroadcastIfStats(&payload)
 	}
 }
 

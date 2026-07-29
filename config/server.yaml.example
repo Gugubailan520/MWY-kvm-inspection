@@ -15,6 +15,7 @@ mongo:
   uri: "mongodb://127.0.0.1:27017"
   database: kvm_inspection
   collection: network_events
+  ifstat_collection: interface_stats   # 接口流量快照集合
 
 jwt:
   secret: "please-change-this-secret-to-random-string"

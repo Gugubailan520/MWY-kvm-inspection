@@ -96,6 +96,20 @@ func (h *Hub) BroadcastEvent(ev *common.NetworkEvent) {
 	if err != nil {
 		return
 	}
+	h.broadcastToFrontends(data)
+}
+
+// BroadcastIfStats 向所有前端连接广播接口流量快照
+func (h *Hub) BroadcastIfStats(p *common.IfStatsPayload) {
+	data, err := json.Marshal(common.WSMessage{Type: common.MsgTypeIfStatsPush, Payload: p})
+	if err != nil {
+		return
+	}
+	h.broadcastToFrontends(data)
+}
+
+// broadcastToFrontends 向所有前端连接写入一条消息，失败则剔除
+func (h *Hub) broadcastToFrontends(data []byte) {
 	h.mu.RLock()
 	targets := make([]*frontendConn, 0, len(h.frontends))
 	for fc := range h.frontends {

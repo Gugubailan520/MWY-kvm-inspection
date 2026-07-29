@@ -34,3 +34,8 @@ firewall:
   enable: true
   chain: FORWARD
   binary_path: /sbin/iptables
+
+# 接口流量监控（参考 cockpit-traffic-monitor）：定时采集 /proc/net/dev 上报服务端
+ifstat:
+  enable: true
+  interval_sec: 2

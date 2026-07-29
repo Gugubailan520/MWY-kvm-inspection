@@ -12,6 +12,7 @@ const router = createRouter({
         { path: 'dashboard', name: 'dashboard', component: () => import('../views/Dashboard.vue') },
         { path: 'nodes', name: 'nodes', component: () => import('../views/Nodes.vue') },
         { path: 'events', name: 'events', component: () => import('../views/Events.vue') },
+        { path: 'traffic', name: 'traffic', component: () => import('../views/Traffic.vue') },
         { path: 'rules', name: 'rules', component: () => import('../views/Rules.vue') },
         { path: 'blacklist', name: 'blacklist', component: () => import('../views/Blacklist.vue') },
       ],

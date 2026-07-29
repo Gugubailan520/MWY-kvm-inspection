@@ -19,6 +19,7 @@ import (
 	"github.com/kvm-inspection/Server/internal/api"
 	"github.com/kvm-inspection/Server/internal/auth"
 	"github.com/kvm-inspection/Server/internal/config"
+	"github.com/kvm-inspection/Server/internal/ifstatstore"
 	"github.com/kvm-inspection/Server/internal/logstore"
 	"github.com/kvm-inspection/Server/internal/model"
 	"github.com/kvm-inspection/Server/internal/service"
@@ -60,6 +61,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect mongo: %v", err)
 	}
+	ifs, err := ifstatstore.New(ctx, ls.Database(), cfg.Mongo.IfStatColl)
+	if err != nil {
+		log.Fatalf("init ifstat store: %v", err)
+	}
 
 	// 3) 规则引擎（预热）
 	eng := violation.New()
@@ -77,7 +82,7 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
-	h := api.New(svc, ls, eng, hub, am)
+	h := api.New(svc, ls, ifs, eng, hub, am)
 	h.Register(r, cfg.Server.CORSOrigins)
 
 	srv := &http.Server{

@@ -8,10 +8,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/kvm-inspection/Agent/internal/capture"
 	"github.com/kvm-inspection/Agent/internal/config"
 	"github.com/kvm-inspection/Agent/internal/firewall"
+	"github.com/kvm-inspection/Agent/internal/ifstat"
 	"github.com/kvm-inspection/Agent/internal/reporter"
 	"github.com/kvm-inspection/Agent/internal/storage"
 	"github.com/kvm-inspection/common"
@@ -85,6 +87,15 @@ func main() {
 	// 6) 事件加工 + 上报循环：把事件投递给 reporter；断网时落本地 SQLite
 	go pipeline(ctx, evCh, rep, st)
 
+	// 7) 接口流量监控（参考 cockpit-traffic-monitor）：定时采集 /proc/net/dev 上报
+	if cfg.IfStat.Enable {
+		coll := ifstat.New(cfg.NodeID)
+		ifStatsCh := make(chan *common.IfStatsPayload, 16)
+		go coll.Run(time.Duration(cfg.IfStat.IntervalSec)*time.Second, ifStatsCh, ctx.Done())
+		go forwardIfStats(ifStatsCh, rep)
+		log.Printf("[agent] ifstat enabled, interval=%ds", cfg.IfStat.IntervalSec)
+	}
+
 	log.Printf("[agent] node_id=%s started, version=%s, interfaces=%v", cfg.NodeID, version, ifaces)
 
 	<-ctx.Done()
@@ -113,5 +124,13 @@ func pipeline(ctx context.Context, evCh <-chan *common.NetworkEvent, rep *report
 				}
 			}
 		}
+	}
+}
+
+// forwardIfStats 把采集到的接口流量快照通过 reporter 上报给服务端。
+func forwardIfStats(ch <-chan *common.IfStatsPayload, rep *reporter.Reporter) {
+	for p := range ch {
+		msg := &common.WSMessage{Type: common.MsgTypeIfStats, Payload: p}
+		rep.SendMessage(msg)
 	}
 }

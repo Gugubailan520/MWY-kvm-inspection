@@ -36,7 +36,8 @@ type Reporter struct {
 	cfg   Config
 	conn  *websocket.Conn
 	mu    sync.Mutex
-	sendQ chan *common.NetworkEvent
+	sendQ chan *common.NetworkEvent // 事件队列（断线回退到本地缓冲）
+	msgQ  chan *common.WSMessage    // 通用消息队列（接口流量等，断线丢弃，下次会重新采集）
 	stop  chan struct{}
 	wg    sync.WaitGroup
 }
@@ -46,6 +47,7 @@ func New(cfg Config, bufferCap int) *Reporter {
 	return &Reporter{
 		cfg:   cfg,
 		sendQ: make(chan *common.NetworkEvent, bufferCap),
+		msgQ:  make(chan *common.WSMessage, bufferCap),
 		stop:  make(chan struct{}),
 	}
 }
@@ -54,6 +56,16 @@ func New(cfg Config, bufferCap int) *Reporter {
 func (r *Reporter) Enqueue(ev *common.NetworkEvent) (dropped bool) {
 	select {
 	case r.sendQ <- ev:
+		return false
+	default:
+		return true
+	}
+}
+
+// SendMessage 发送任意 WSMessage（用于接口流量上报），队列满则丢弃。
+func (r *Reporter) SendMessage(msg *common.WSMessage) (dropped bool) {
+	select {
+	case r.msgQ <- msg:
 		return false
 	default:
 		return true
@@ -121,7 +133,7 @@ func (r *Reporter) runOnce(ctx context.Context) error {
 		r.readLoop(ctx, conn)
 	}()
 
-	// 写循环（事件上报）
+	// 写循环（事件上报 + 接口流量上报）
 	for {
 		select {
 		case <-ctx.Done():
@@ -136,6 +148,11 @@ func (r *Reporter) runOnce(ctx context.Context) error {
 				case r.sendQ <- ev:
 				default:
 				}
+				return err
+			}
+		case msg := <-r.msgQ:
+			if err := writeJSON(conn, *msg); err != nil {
+				// 写失败：流量消息直接丢弃（下一周期会重新采集）
 				return err
 			}
 		}

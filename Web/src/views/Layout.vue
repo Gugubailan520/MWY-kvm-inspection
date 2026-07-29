@@ -9,6 +9,7 @@
         <a-menu-item key="dashboard"><i class="fa-solid fa-gauge" /> 总览</a-menu-item>
         <a-menu-item key="nodes"><i class="fa-solid fa-server" /> 节点管理</a-menu-item>
         <a-menu-item key="events"><i class="fa-solid fa-list" /> 事件日志</a-menu-item>
+        <a-menu-item key="traffic"><i class="fa-solid fa-chart-line" /> 流量监控</a-menu-item>
         <a-menu-item key="rules"><i class="fa-solid fa-gavel" /> 违规规则</a-menu-item>
         <a-menu-item key="blacklist"><i class="fa-solid fa-ban" /> 域名黑名单</a-menu-item>
       </a-menu>

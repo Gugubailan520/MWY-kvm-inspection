@@ -48,3 +48,9 @@ export const deleteBlacklist = (id: number) => http.delete(`/api/blacklist/${id}
 
 // ---- Dashboard ----
 export const dashboard = () => http.get('/api/dashboard')
+
+// ---- Interface Traffic (ifstats) ----
+export const ifStatsLatest = (node_id?: string) =>
+  http.get('/api/ifstats', { params: { node_id } })
+export const ifStatsHistory = (params: Record<string, any>) =>
+  http.get('/api/ifstats/history', { params })
