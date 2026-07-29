@@ -1,8 +1,8 @@
 # 二进制
 bin/
 *.exe
-agent
-server
+/bin/agent
+/bin/server
 
 # 构建产物
 dist/
