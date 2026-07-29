@@ -1,0 +1,16 @@
+[Unit]
+Description=KVM Inspection Agent
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kvm-inspection
+ExecStart=/opt/kvm-inspection/agent -c /opt/kvm-inspection/agent.local.yaml
+Restart=always
+RestartSec=5
+# 抓包与 iptables 需要 CAP_NET_RAW / CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,36 @@
+# 客户端配置模板。复制为 agent.local.yaml 后修改。
+# node_id 与 api_key 由服务端 Web UI 添加节点后返回。
+node_id: "00000000-0000-0000-0000-000000000000"
+api_key: "replace-with-real-api-key"
+hostname: "host-01"
+
+server:
+  # ws:// 或 wss://（启用 TLS 时）
+  url: "ws://127.0.0.1:8080/agent"
+  tls_ca_cert: ""
+  reconnect_sec: 5
+
+capture:
+  # 监听网卡列表，可填 br0 / virbr0 / eth0 等；留空则仅以 dry 模式运行
+  interfaces:
+    - eth0
+  # BPF 过滤表达式，可缩小抓包范围，例如 "tcp or udp"
+  bpf_filter: ""
+  snap_len: 65535
+  promiscuous: false
+
+storage:
+  type: sqlite
+  sqlite:
+    path: ./agent_buffer.db
+    max_size_mb: 500
+
+report:
+  batch_size: 100
+  flush_sec: 3
+  buffer_cap: 10000
+
+firewall:
+  enable: true
+  chain: FORWARD
+  binary_path: /sbin/iptables

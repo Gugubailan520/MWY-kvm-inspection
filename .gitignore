@@ -1,0 +1,28 @@
+# 二进制
+bin/
+*.exe
+agent
+server
+
+# 构建产物
+dist/
+build/
+node_modules/
+
+# 本地配置（含密钥）
+config/local.yaml
+*.local.yaml
+
+# 数据库 / 日志
+*.db
+*.sqlite
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Go
+vendor/

@@ -1,0 +1,13 @@
+[Unit]
+Description=KVM Inspection Server
+After=network-online.target mysql.service mongod.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kvm-inspection
+ExecStart=/opt/kvm-inspection/server -c /opt/kvm-inspection/server.local.yaml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
